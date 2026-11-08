@@ -3,29 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Mod Online — Браузерная песочница</title>
+    <title>Mod Online</title>
     <style>
         body { margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; touch-action: none; background: #000; color: white; user-select: none; }
         #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
         
-        /* Прицел */
         #crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; }
         .ch-line { position: absolute; background: rgba(255, 255, 255, 0.9); }
         .ch-v { width: 2px; height: 10px; left: 0; }
         .ch-h { width: 10px; height: 2px; top: 0; }
         #ch-center { position: absolute; top: 50%; left: 50%; width: 4px; height: 4px; background: red; border-radius: 50%; transform: translate(-50%, -50%); }
 
-        /* HUD */
         #hud { position: absolute; top: 15px; left: 15px; right: 15px; display: flex; justify-content: space-between; pointer-events: none; }
         .hud-panel { background: rgba(15, 15, 20, 0.85); border: 1px solid #444; padding: 8px 12px; border-radius: 6px; font-weight: bold; font-size: 13px; display: flex; gap: 10px; align-items: center; }
         #health-bar { width: 80px; height: 8px; background: #400; border-radius: 4px; overflow: hidden; }
         #health-fill { width: 100%; height: 100%; background: #4CAF50; transition: width 0.2s; }
         
-        /* Кнопка меню */
         #btn-toggle-menu { pointer-events: auto; background: rgba(30, 30, 40, 0.9); color: white; border: 1px solid #4CAF50; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px; }
         #btn-toggle-menu:active { background: #4CAF50; }
 
-        /* Меню спавна */
         #spawn-panel { position: absolute; top: 60px; left: 15px; width: 220px; background: rgba(20, 25, 30, 0.95); border: 1px solid #4CAF50; border-radius: 8px; padding: 12px; pointer-events: auto; display: none; flex-direction: column; gap: 8px; z-index: 20; max-height: 70vh; overflow-y: auto; }
         .panel-header { font-size: 14px; font-weight: bold; color: #4CAF50; border-bottom: 1px solid #444; padding-bottom: 5px; display: flex; justify-content: space-between; }
         .panel-close { background: transparent; border: none; color: #ff5555; font-size: 18px; cursor: pointer; }
@@ -39,7 +35,6 @@
         .spawn-tab-content { display: none; flex-direction: column; }
         .spawn-tab-content.active { display: flex; }
 
-        /* Мобильное управление */
         #mobile-controls { position: absolute; bottom: 20px; left: 0; right: 0; display: flex; justify-content: space-between; padding: 0 15px; pointer-events: none; z-index: 30; }
         #joystick-zone { width: 120px; height: 120px; pointer-events: auto; position: relative; }
         #joystick-base { width: 100%; height: 100%; background: rgba(255,255,255,0.1); border-radius: 50%; border: 1px solid rgba(255,255,255,0.3); position: relative; touch-action: none; }
@@ -50,17 +45,14 @@
         .action-btn:active { background: #4CAF50; }
         #btn-shoot { width: 75px; height: 75px; background: rgba(200, 50, 50, 0.8); border-color: #ff5555; font-size: 14px; }
 
-        /* Стартовое меню */
         #start-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #111; z-index: 100; display: flex; flex-direction: column; justify-content: center; align-items: center; pointer-events: auto; }
         #start-overlay h1 { color: #4CAF50; font-size: 32px; margin-bottom: 10px; }
         .map-select { display: flex; gap: 15px; margin-bottom: 30px; }
-        .map-btn { background: green; border: 1px solid #444; padding: 15px; border-radius: 8px; color: white; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 5px; width: 100px; }
+        .map-btn { background: #2a2a2a; border: 1px solid #444; padding: 15px; border-radius: 8px; color: white; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 5px; width: 100px; }
         .map-btn:active { border-color: #4CAF50; background: #333; }
         #start-game-btn { background: #4CAF50; color: white; border: none; padding: 12px 40px; font-size: 18px; border-radius: 6px; cursor: pointer; font-weight: bold; }
         
         .help-text { font-size: 12px; color: #aaa; margin-top: 20px; text-align: center; line-height: 1.5; }
-
-        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #4CAF50; font-size: 20px; display: none; z-index: 200; background: rgba(0,0,0,0.8); padding: 20px; border-radius: 10px; }
     </style>
 </head>
 <body>
@@ -147,13 +139,10 @@
         </div>
     </div>
 
-    <div id="loading">Загрузка моделей...</div>
-
     <script type="importmap">
         {
             "imports": {
                 "three": "https://unpkg.com/three@0.128.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.128.0/examples/jsm/",
                 "cannon-es": "https://unpkg.com/cannon-es@0.19.0/dist/cannon-es.js"
             }
         }
@@ -161,8 +150,6 @@
 
     <script type="module">
         import * as THREE from 'three';
-        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-        import { SkeletonUtils } from 'three/addons/utils/SkeletonUtils.js';
         import * as CANNON from 'cannon-es';
 
         // --- 1. СЦЕНА И ФИЗИКА ---
@@ -255,31 +242,81 @@
 
         weaponGroup.add(gravGun, pistol, shotgun);
 
-        // --- 3. ЗАГРУЗКА МОДЕЛЕЙ ---
-        const loader = new GLTFLoader();
-        let soldierModel = null;
-        let citizenModel = null;
-        let loadedCount = 0;
+        // --- 3. МОДЕЛИ NPC (УЛУЧШЕННЫЕ) ---
+        function createNPC(type) {
+            const g = new THREE.Group();
+            let skin = 0xffcc99, shirt = 0x2244ff, pants = 0x222222;
+            let isZ = false, isS = false;
 
-        document.getElementById('loading').style.display = 'block';
+            if (type === 'zombie') { skin = 0x66aa66; shirt = 0x335533; isZ = true; }
+            if (type === 'soldier') { skin = 0xddbb99; shirt = 0x4a5a2a; pants = 0x3a4a20; isS = true; }
 
-        // Загружаем модель солдата (с анимацией)
-        loader.load('https://threejs.org/examples/models/gltf/Soldier.glb', (gltf) => {
-            soldierModel = gltf.scene;
-            soldierModel.scale.set(0.5, 0.5, 0.5);
-            soldierModel.traverse(c => { if(c.isMesh) c.castShadow = true; });
-            loadedCount++;
-            if (loadedCount === 2) document.getElementById('loading').style.display = 'none';
-        });
+            const skinMat = new THREE.MeshStandardMaterial({ color: skin });
+            const shirtMat = new THREE.MeshStandardMaterial({ color: shirt });
+            const pantsMat = new THREE.MeshStandardMaterial({ color: pants });
+            const shoeMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
 
-        // Загружаем модель гражданского (с анимацией)
-        loader.load('https://threejs.org/examples/models/gltf/Xbot.glb', (gltf) => {
-            citizenModel = gltf.scene;
-            citizenModel.scale.set(1, 1, 1);
-            citizenModel.traverse(c => { if(c.isMesh) c.castShadow = true; });
-            loadedCount++;
-            if (loadedCount === 2) document.getElementById('loading').style.display = 'none';
-        });
+            // Торс
+            const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.25, 0.9, 8), shirtMat);
+            torso.position.y = 0.45; torso.castShadow = true;
+            
+            // Голова
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.25, 16, 16), skinMat);
+            head.position.y = 1.15; head.castShadow = true;
+
+            // Лицо (глаза, рот, брови)
+            const eyeMat = new THREE.MeshBasicMaterial({ color: isZ ? 0xff0000 : 0x000000 });
+            const eL = new THREE.Mesh(new THREE.SphereGeometry(0.05), eyeMat); eL.position.set(-0.1, 1.18, 0.2);
+            const eR = new THREE.Mesh(new THREE.SphereGeometry(0.05), eyeMat); eR.position.set(0.1, 1.18, 0.2);
+            
+            const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.03, 0.03), new THREE.MeshBasicMaterial({ color: isZ ? 0x000 : 0xaa4444 }));
+            mouth.position.set(0, 1.05, 0.22);
+
+            const browMat = new THREE.MeshBasicMaterial({ color: isZ ? 0x000 : 0x553311 });
+            const browL = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.02, 0.02), browMat); browL.position.set(-0.1, 1.25, 0.2);
+            const browR = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.02, 0.02), browMat); browR.position.set(0.1, 1.25, 0.2);
+
+            // Руки с кистями
+            function createArm(isLeft) {
+                const armGroup = new THREE.Group();
+                const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.06, 0.7), shirtMat);
+                arm.position.y = -0.35; arm.castShadow = true;
+                // Кисть
+                const hand = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 0.05), skinMat);
+                hand.position.set(0, -0.75, 0);
+                armGroup.add(arm, hand);
+                return armGroup;
+            }
+            const armL = createArm(true); armL.position.set(-0.35, 0.8, 0); armL.rotation.z = 0.1;
+            const armR = createArm(false); armR.position.set(0.35, 0.8, 0); armR.rotation.z = -0.1;
+
+            // Ноги с обувью
+            function createLeg() {
+                const legGroup = new THREE.Group();
+                const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.08, 0.8), pantsMat);
+                leg.position.y = -0.4; leg.castShadow = true;
+                const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.1, 0.25), shoeMat);
+                shoe.position.set(0, -0.85, 0.05); shoe.castShadow = true;
+                legGroup.add(leg, shoe);
+                return legGroup;
+            }
+            const legL = createLeg(); legL.position.set(-0.15, 0, 0);
+            const legR = createLeg(); legR.position.set(0.15, 0, 0);
+
+            g.add(torso, head, eL, eR, mouth, browL, browR, armL, armR, legL, legR);
+
+            if (isS) {
+                const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.28, 16, 16, 0, Math.PI*2, 0, Math.PI/2), new THREE.MeshStandardMaterial({ color: 0x4a5a2a }));
+                helmet.position.y = 1.15; g.add(helmet);
+                // Оружие в руке
+                armR.rotation.x = -1.5;
+                const gun = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.5), new THREE.MeshStandardMaterial({ color: 0x111111 }));
+                gun.position.set(0, -0.8, -0.2); gun.rotation.x = Math.PI / 2;
+                armR.add(gun);
+            }
+
+            return g;
+        }
 
         // --- 4. СПАВН ---
         let objects = [];
@@ -337,33 +374,16 @@
                 body = new CANNON.Body({ mass: 0, type: CANNON.Body.STATIC, shape: new CANNON.Box(new CANNON.Vec3(2, 1.5, 0.15)), position: new CANNON.Vec3(spawnPos.x, spawnPos.y + 1.5, spawnPos.z) });
                 world.addBody(body);
             } else {
-                // СПАВН NPC
-                if (type === 'soldier') {
-                    if (!soldierModel) { alert('Модель солдата загружается!'); return; }
-                    mesh = SkeletonUtils.clone(soldierModel);
-                    hp = 150; enemy = false;
-                } else {
-                    if (!citizenModel) { alert('Модели загружаются!'); return; }
-                    mesh = SkeletonUtils.clone(citizenModel);
-                    if (type === 'zombie') {
-                        mesh.traverse((child) => {
-                            if (child.isMesh) {
-                                child.material = child.material.clone();
-                                child.material.color.setHex(0x66aa66);
-                            }
-                        });
-                        hp = 80; enemy = true;
-                    } else {
-                        hp = 100; enemy = false;
-                    }
-                }
-
+                mesh = createNPC(type);
                 mesh.position.copy(spawnPos);
                 scene.add(mesh);
 
                 body = new CANNON.Body({ mass: 60, shape: new CANNON.Sphere(0.4), position: new CANNON.Vec3(spawnPos.x, spawnPos.y + 1, spawnPos.z), linearDamping: 0.9 });
                 body.fixedRotation = true; body.updateMassProperties(); world.addBody(body);
                 isNPC = true;
+                if (type === 'soldier') { hp = 150; enemy = false; }
+                if (type === 'zombie') { hp = 80; enemy = true; }
+                if (type === 'citizen') { enemy = false; }
             }
 
             if (mesh && body) objects.push({ mesh, body, isNPC, type, hp, enemy, timer: 0, dir: new THREE.Vector3(), lastShot: 0 });
@@ -695,4 +715,4 @@
 
     </script>
 </body>
-  </html>
+    </html>
