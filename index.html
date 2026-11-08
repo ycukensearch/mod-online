@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mod Online — Браузерная песочница</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; touch-action: none; background: #000; color: white; user-select: none; }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
+        
+        /* Прицел */
+        #crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; }
+        .ch-line { position: absolute; background: rgba(255, 255, 255, 0.9); }
+        .ch-v { width: 2px; height: 10px; left: 0; }
+        .ch-h { width: 10px; height: 2px; top: 0; }
+        #ch-center { position: absolute; top: 50%; left: 50%; width: 4px; height: 4px; background: red; border-radius: 50%; transform: translate(-50%, -50%); }
+
+        /* HUD */
+        #hud { position: absolute; top: 15px; left: 15px; right: 15px; display: flex; justify-content: space-between; pointer-events: none; }
+        .hud-panel { background: rgba(15, 15, 20, 0.85); border: 1px solid #444; padding: 8px 12px; border-radius: 6px; font-weight: bold; font-size: 13px; display: flex; gap: 10px; align-items: center; }
+        #health-bar { width: 80px; height: 8px; background: #400; border-radius: 4px; overflow: hidden; }
+        #health-fill { width: 100%; height: 100%; background: #4CAF50; transition: width 0.2s; }
+        
+        /* Кнопка меню */
+        #btn-toggle-menu { pointer-events: auto; background: rgba(30, 30, 40, 0.9); color: white; border: 1px solid #4CAF50; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px; }
+        #btn-toggle-menu:active { background: #4CAF50; }
+
+        /* Меню спавна */
+        #spawn-panel { position: absolute; top: 60px; left: 15px; width: 220px; background: rgba(20, 25, 30, 0.95); border: 1px solid #4CAF50; border-radius: 8px; padding: 12px; pointer-events: auto; display: none; flex-direction: column; gap: 8px; z-index: 20; max-height: 70vh; overflow-y: auto; }
+        .panel-header { font-size: 14px; font-weight: bold; color: #4CAF50; border-bottom: 1px solid #444; padding-bottom: 5px; display: flex; justify-content: space-between; }
+        .panel-close { background: transparent; border: none; color: #ff5555; font-size: 18px; cursor: pointer; }
+        
+        .tabs { display: flex; gap: 4px; margin-bottom: 4px; }
+        .tab-btn { background: #333; border: 1px solid #555; color: #ccc; padding: 4px; border-radius: 4px; cursor: pointer; font-size: 10px; font-weight: bold; flex: 1; }
+        .tab-btn.active { background: #4CAF50; color: white; }
+
+        .spawn-item { background: #2a2a2a; border: 1px solid #444; padding: 8px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; margin-bottom: 4px; }
+        .spawn-item:active { background: #4CAF50; }
+        .spawn-tab-content { display: none; flex-direction: column; }
+        .spawn-tab-content.active { display: flex; }
+
+        /* Мобильное управление */
+        #mobile-controls { position: absolute; bottom: 20px; left: 0; right: 0; display: flex; justify-content: space-between; padding: 0 15px; pointer-events: none; z-index: 30; }
+        #joystick-zone { width: 120px; height: 120px; pointer-events: auto; position: relative; }
+        #joystick-base { width: 100%; height: 100%; background: rgba(255,255,255,0.1); border-radius: 50%; border: 1px solid rgba(255,255,255,0.3); position: relative; touch-action: none; }
+        #joystick-knob { width: 50px; height: 50px; background: rgba(255,255,255,0.4); border-radius: 50%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+
+        #action-buttons { display: flex; flex-direction: column; gap: 10px; pointer-events: auto; align-items: flex-end; }
+        .action-btn { background: rgba(30, 30, 40, 0.9); color: white; border: 1px solid #555; width: 55px; height: 55px; border-radius: 50%; font-size: 10px; font-weight: bold; display: flex; justify-content: center; align-items: center; text-align: center; }
+        .action-btn:active { background: #4CAF50; }
+        #btn-shoot { width: 75px; height: 75px; background: rgba(200, 50, 50, 0.8); border-color: #ff5555; font-size: 14px; }
+
+        /* Стартовое меню */
+        #start-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #111; z-index: 100; display: flex; flex-direction: column; justify-content: center; align-items: center; pointer-events: auto; }
+        #start-overlay h1 { color: #4CAF50; font-size: 32px; margin-bottom: 10px; }
+        .map-select { display: flex; gap: 15px; margin-bottom: 30px; }
+        .map-btn { background: green; border: 1px solid #444; padding: 15px; border-radius: 8px; color: white; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 5px; width: 100px; }
+        .map-btn:active { border-color: #4CAF50; background: #333; }
+        #start-game-btn { background: #4CAF50; color: white; border: none; padding: 12px 40px; font-size: 18px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        
+        .help-text { font-size: 12px; color: #aaa; margin-top: 20px; text-align: center; line-height: 1.5; }
+
+        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #4CAF50; font-size: 20px; display: none; z-index: 200; background: rgba(0,0,0,0.8); padding: 20px; border-radius: 10px; }
+    </style>
+</head>
+<body>
+
+    <div id="ui-layer">
+        <div id="crosshair">
+            <div class="ch-line ch-v" style="top: -8px;"></div>
+            <div class="ch-line ch-v" style="bottom: -8px;"></div>
+            <div class="ch-line ch-h" style="left: -8px;"></div>
+            <div class="ch-line ch-h" style="right: -8px;"></div>
+        </div>
+        <div id="ch-center"></div>
+        
+        <div id="hud">
+            <div class="hud-panel">
+                <span id="weapon-hud">🌀 Гравипушка</span>
+                <span>❤️ <span id="hp-text">100</span></span>
+                <div id="health-bar"><div id="health-fill" style="width: 100%"></div></div>
+            </div>
+            <button id="btn-toggle-menu">📦 Меню</button>
+        </div>
+
+        <div id="spawn-panel">
+            <div class="panel-header">
+                <span>Меню</span>
+                <button class="panel-close" onclick="closeMenu()">✖</button>
+            </div>
+            <div class="tabs">
+                <div class="tab-btn active" onclick="switchTab('npc')">NPC</div>
+                <div class="tab-btn" onclick="switchTab('obj')">Объекты</div>
+                <div class="tab-btn" onclick="switchTab('build')">Здания</div>
+                <div class="tab-btn" onclick="switchTab('wep')">Оружие</div>
+            </div>
+            
+            <div id="tab-npc" class="spawn-tab-content active">
+                <div class="spawn-item" onclick="spawnEntity('citizen')">🧍 Гражданский</div>
+                <div class="spawn-item" onclick="spawnEntity('zombie')">🧟 Зомби</div>
+                <div class="spawn-item" onclick="spawnEntity('soldier')">🪖 Солдат</div>
+            </div>
+            
+            <div id="tab-obj" class="spawn-tab-content">
+                <div class="spawn-item" onclick="spawnEntity('crate')">📦 Ящик</div>
+                <div class="spawn-item" onclick="spawnEntity('barrel')">🛢️ Бочка</div>
+            </div>
+
+            <div id="tab-build" class="spawn-tab-content">
+                <div class="spawn-item" onclick="spawnEntity('house')">🏠 Дом</div>
+                <div class="spawn-item" onclick="spawnEntity('wall')">🧱 Стена</div>
+            </div>
+
+            <div id="tab-wep" class="spawn-tab-content">
+                <div class="spawn-item" onclick="setWeapon('gravity')">🌀 Гравипушка</div>
+                <div class="spawn-item" onclick="setWeapon('pistol')">🔫 Пистолет</div>
+                <div class="spawn-item" onclick="setWeapon('shotgun')">💥 Дробовик</div>
+            </div>
+        </div>
+
+        <div id="mobile-controls">
+            <div id="joystick-zone">
+                <div id="joystick-base">
+                    <div id="joystick-knob"></div>
+                </div>
+            </div>
+            
+            <div id="action-buttons">
+                <button class="action-btn" id="btn-jump">⬆️<br>Прыжок</button>
+                <button class="action-btn" id="btn-weapon">🔄<br>Смена</button>
+                <button class="action-btn" id="btn-shoot">💥<br>ОГОНЬ</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="start-overlay">
+        <h1>Mod Online</h1>
+        <div class="map-select">
+            <button class="map-btn" onclick="selectMap('grass')"><span>🌲</span>Трава</button>
+            <button class="map-btn" onclick="selectMap('desert')"><span>🏜️</span>Пустыня</button>
+            <button class="map-btn" onclick="selectMap('space')"><span>🌌</span>Космос</button>
+        </div>
+        <button id="start-game-btn" onclick="startGame()">▶ Играть</button>
+        <div class="help-text">
+            <b>ПК:</b> WASD, Мышь, ЛКМ, Пробел.<br>
+            <b>Телефон:</b> Джойстик (лево), Свайп (право), Кнопки (справо).
+        </div>
+    </div>
+
+    <div id="loading">Загрузка моделей...</div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.128.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.128.0/examples/jsm/",
+                "cannon-es": "https://unpkg.com/cannon-es@0.19.0/dist/cannon-es.js"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { SkeletonUtils } from 'three/addons/utils/SkeletonUtils.js';
+        import * as CANNON from 'cannon-es';
+
+        // --- 1. СЦЕНА И ФИЗИКА ---
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.insertBefore(renderer.domElement, document.body.firstChild);
+
+        scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        dirLight.position.set(20, 40, 20);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 1024;
+        dirLight.shadow.mapSize.height = 1024;
+        dirLight.shadow.camera.left = -30;
+        dirLight.shadow.camera.right = 30;
+        dirLight.shadow.camera.top = 30;
+        dirLight.shadow.camera.bottom = -30;
+        scene.add(dirLight);
+
+        const world = new CANNON.World();
+        world.gravity.set(0, -9.82, 0);
+        world.broadphase = new CANNON.SAPBroadphase(world);
+
+        const groundMesh = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshStandardMaterial({ color: 0x4a6b4a }));
+        groundMesh.rotation.x = -Math.PI / 2;
+        groundMesh.receiveShadow = true;
+        scene.add(groundMesh);
+        const groundBody = new CANNON.Body({ type: CANNON.Body.STATIC, shape: new CANNON.Plane() });
+        groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
+        world.addBody(groundBody);
+
+        // --- 2. ИГРОК ---
+        const player = {
+            pos: new THREE.Vector3(0, 1.6, 0),
+            vel: new THREE.Vector3(0, 0, 0),
+            pitch: 0, yaw: 0,
+            weapon: 'gravity',
+            grabbed: null,
+            health: 100,
+            grounded: true,
+            lastDamage: 0
+        };
+
+        // Оружие от первого лица
+        const weaponGroup = new THREE.Group();
+        camera.add(weaponGroup);
+        scene.add(camera);
+
+        // Гравипушка
+        const gravGun = new THREE.Group();
+        const ggBody = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 0.5), new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.8 }));
+        ggBody.position.set(0, 0, -0.4);
+        const ggGlow = new THREE.Mesh(new THREE.SphereGeometry(0.08), new THREE.MeshBasicMaterial({ color: 0x00ffff }));
+        ggGlow.position.set(0, 0, -0.8);
+        const ggHand = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 0.2), new THREE.MeshStandardMaterial({ color: 0xffcc99 }));
+        ggHand.position.set(0, -0.1, -0.1);
+        gravGun.add(ggBody, ggGlow, ggHand);
+        gravGun.position.set(0.2, -0.2, 0);
+
+        // Пистолет
+        const pistol = new THREE.Group();
+        const pBody = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.2, 0.3), new THREE.MeshStandardMaterial({ color: 0x222222 }));
+        pBody.position.set(0, 0, -0.3);
+        const pBarrel = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.2), new THREE.MeshStandardMaterial({ color: 0x111111 }));
+        pBarrel.position.set(0, 0.05, -0.45);
+        const pHand = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 0.2), new THREE.MeshStandardMaterial({ color: 0xffcc99 }));
+        pHand.position.set(0, -0.1, -0.1);
+        pistol.add(pBody, pBarrel, pHand);
+        pistol.position.set(0.2, -0.2, 0);
+        pistol.visible = false;
+
+        // Дробовик
+        const shotgun = new THREE.Group();
+        const sBody = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.15, 0.8), new THREE.MeshStandardMaterial({ color: 0x5c4033 }));
+        sBody.position.set(0, 0, -0.4);
+        const sBarrel = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.6), new THREE.MeshStandardMaterial({ color: 0x111111 }));
+        sBarrel.rotation.x = Math.PI / 2;
+        sBarrel.position.set(0, 0.05, -0.7);
+        const sHand1 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 0.2), new THREE.MeshStandardMaterial({ color: 0xffcc99 }));
+        sHand1.position.set(0, -0.1, -0.1);
+        const sHand2 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 0.2), new THREE.MeshStandardMaterial({ color: 0xffcc99 }));
+        sHand2.position.set(0, -0.1, -0.5);
+        shotgun.add(sBody, sBarrel, sHand1, sHand2);
+        shotgun.position.set(0.2, -0.2, 0);
+        shotgun.visible = false;
+
+        weaponGroup.add(gravGun, pistol, shotgun);
+
+        // --- 3. ЗАГРУЗКА МОДЕЛЕЙ ---
+        const loader = new GLTFLoader();
+        let soldierModel = null;
+        let citizenModel = null;
+        let loadedCount = 0;
+
+        document.getElementById('loading').style.display = 'block';
+
+        // Загружаем модель солдата (с анимацией)
+        loader.load('https://threejs.org/examples/models/gltf/Soldier.glb', (gltf) => {
+            soldierModel = gltf.scene;
+            soldierModel.scale.set(0.5, 0.5, 0.5);
+            soldierModel.traverse(c => { if(c.isMesh) c.castShadow = true; });
+            loadedCount++;
+            if (loadedCount === 2) document.getElementById('loading').style.display = 'none';
+        });
+
+        // Загружаем модель гражданского (с анимацией)
+        loader.load('https://threejs.org/examples/models/gltf/Xbot.glb', (gltf) => {
+            citizenModel = gltf.scene;
+            citizenModel.scale.set(1, 1, 1);
+            citizenModel.traverse(c => { if(c.isMesh) c.castShadow = true; });
+            loadedCount++;
+            if (loadedCount === 2) document.getElementById('loading').style.display = 'none';
+        });
+
+        // --- 4. СПАВН ---
+        let objects = [];
+        let bullets = [];
+
+        window.spawnEntity = (type) => {
+            const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+            const spawnPos = camera.position.clone().add(dir.multiplyScalar(5));
+            spawnPos.y = Math.max(spawnPos.y, 0.5);
+
+            let mesh, body, isNPC = false, hp = 100, enemy = false;
+
+            if (type === 'crate') {
+                mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0xcc5533 }));
+                mesh.castShadow = true; scene.add(mesh);
+                body = new CANNON.Body({ mass: 10, shape: new CANNON.Box(new CANNON.Vec3(0.5, 0.5, 0.5)), position: new CANNON.Vec3(spawnPos.x, spawnPos.y, spawnPos.z) });
+                world.addBody(body);
+            } else if (type === 'barrel') {
+                mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 1.2, 12), new THREE.MeshStandardMaterial({ color: 0x3366cc }));
+                mesh.castShadow = true; scene.add(mesh);
+                body = new CANNON.Body({ mass: 15, shape: new CANNON.Cylinder(0.4, 0.4, 1.2, 12), position: new CANNON.Vec3(spawnPos.x, spawnPos.y, spawnPos.z) });
+                const q = new CANNON.Quaternion(); q.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), Math.PI/2);
+                body.quaternion.copy(q); world.addBody(body);
+            } else if (type === 'house') {
+                const house = new THREE.Group();
+                const wallMat = new THREE.MeshStandardMaterial({ color: 0xddccaa });
+                const roofMat = new THREE.MeshStandardMaterial({ color: 0x883333 });
+                const floor = new THREE.Mesh(new THREE.BoxGeometry(6, 0.2, 6), new THREE.MeshStandardMaterial({ color: 0x8b7355 })); floor.position.y = 0.1; house.add(floor);
+                
+                const w1 = new THREE.Mesh(new THREE.BoxGeometry(6, 3, 0.2), wallMat); w1.position.set(0, 1.5, -3); house.add(w1);
+                const w2 = new THREE.Mesh(new THREE.BoxGeometry(6, 3, 0.2), wallMat); w2.position.set(0, 1.5, 3); house.add(w2);
+                const w3 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 3, 6), wallMat); w3.position.set(-3, 1.5, 0); house.add(w3);
+                
+                const w4a = new THREE.Mesh(new THREE.BoxGeometry(0.2, 3, 2), wallMat); w4a.position.set(3, 1.5, -2); house.add(w4a);
+                const w4b = new THREE.Mesh(new THREE.BoxGeometry(0.2, 3, 2), wallMat); w4b.position.set(3, 1.5, 2); house.add(w4b);
+                const w4c = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1, 2), wallMat); w4c.position.set(3, 2.5, 0); house.add(w4c);
+
+                const windowMat = new THREE.MeshStandardMaterial({ color: 0xffffaa, emissive: 0xffffaa, emissiveIntensity: 0.5 });
+                const win = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.5, 0.1), windowMat); win.position.set(-1.5, 1.5, -3.05); house.add(win);
+
+                const roof = new THREE.Mesh(new THREE.ConeGeometry(4.5, 2, 4), roofMat);
+                roof.position.y = 4; roof.rotation.y = Math.PI / 4; house.add(roof);
+                
+                house.position.copy(spawnPos);
+                scene.add(house);
+                
+                body = new CANNON.Body({ mass: 0, type: CANNON.Body.STATIC, position: new CANNON.Vec3(spawnPos.x, spawnPos.y, spawnPos.z) });
+                body.addShape(new CANNON.Box(new CANNON.Vec3(3, 1.5, 3)), new CANNON.Vec3(0, 1.5, 0));
+                world.addBody(body);
+                mesh = house;
+            } else if (type === 'wall') {
+                mesh = new THREE.Mesh(new THREE.BoxGeometry(4, 3, 0.3), new THREE.MeshStandardMaterial({ color: 0x999999 }));
+                mesh.castShadow = true; mesh.receiveShadow = true; scene.add(mesh);
+                mesh.position.copy(spawnPos); mesh.position.y += 1.5;
+                body = new CANNON.Body({ mass: 0, type: CANNON.Body.STATIC, shape: new CANNON.Box(new CANNON.Vec3(2, 1.5, 0.15)), position: new CANNON.Vec3(spawnPos.x, spawnPos.y + 1.5, spawnPos.z) });
+                world.addBody(body);
+            } else {
+                // СПАВН NPC
+                if (type === 'soldier') {
+                    if (!soldierModel) { alert('Модель солдата загружается!'); return; }
+                    mesh = SkeletonUtils.clone(soldierModel);
+                    hp = 150; enemy = false;
+                } else {
+                    if (!citizenModel) { alert('Модели загружаются!'); return; }
+                    mesh = SkeletonUtils.clone(citizenModel);
+                    if (type === 'zombie') {
+                        mesh.traverse((child) => {
+                            if (child.isMesh) {
+                                child.material = child.material.clone();
+                                child.material.color.setHex(0x66aa66);
+                            }
+                        });
+                        hp = 80; enemy = true;
+                    } else {
+                        hp = 100; enemy = false;
+                    }
+                }
+
+                mesh.position.copy(spawnPos);
+                scene.add(mesh);
+
+                body = new CANNON.Body({ mass: 60, shape: new CANNON.Sphere(0.4), position: new CANNON.Vec3(spawnPos.x, spawnPos.y + 1, spawnPos.z), linearDamping: 0.9 });
+                body.fixedRotation = true; body.updateMassProperties(); world.addBody(body);
+                isNPC = true;
+            }
+
+            if (mesh && body) objects.push({ mesh, body, isNPC, type, hp, enemy, timer: 0, dir: new THREE.Vector3(), lastShot: 0 });
+            closeMenu();
+        };
+
+        // --- 5. UI ---
+        const panel = document.getElementById('spawn-panel');
+        window.toggleMenu = () => panel.style.display = panel.style.display === 'flex' ? 'none' : 'flex';
+        window.closeMenu = () => panel.style.display = 'none';
+        document.getElementById('btn-toggle-menu').addEventListener('click', toggleMenu);
+
+        window.switchTab = (t) => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.spawn-tab-content').forEach(c => c.classList.remove('active'));
+            const idx = ['npc', 'obj', 'build', 'wep'].indexOf(t);
+            document.querySelectorAll('.tab-btn')[idx].classList.add('active');
+            document.getElementById('tab-' + t).classList.add('active');
+        };
+
+        window.setWeapon = (w) => {
+            player.weapon = w;
+            gravGun.visible = (w === 'gravity');
+            pistol.visible = (w === 'pistol');
+            shotgun.visible = (w === 'shotgun');
+            document.getElementById('weapon-hud').textContent = w === 'gravity' ? '🌀 Гравипушка' : w === 'pistol' ? '🔫 Пистолет' : '💥 Дробовик';
+            closeMenu();
+        };
+
+        function cycleWeapon() {
+            const w = ['gravity', 'pistol', 'shotgun'];
+            setWeapon(w[(w.indexOf(player.weapon) + 1) % w.length]);
+        }
+
+        // --- 6. СТРЕЛЬБА ---
+        const raycaster = new THREE.Raycaster();
+        const center = new THREE.Vector2(0, 0);
+
+        function fireAction() {
+            if (player.weapon === 'gravity') {
+                if (player.grabbed) {
+                    const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+                    player.grabbed.body.applyImpulse(new CANNON.Vec3(dir.x * 300, dir.y * 300 + 50, dir.z * 300), new CANNON.Vec3(0,0,0));
+                    player.grabbed = null;
+                } else {
+                    raycaster.setFromCamera(center, camera);
+                    const hits = raycaster.intersectObjects(objects.map(o => o.mesh), true);
+                    if (hits.length > 0 && hits[0].distance < 15) {
+                        let obj = hits[0].object;
+                        while (obj.parent && obj.parent !== scene) obj = obj.parent;
+                        const found = objects.find(o => o.mesh === obj);
+                        if (found && found.body.mass > 0) player.grabbed = found;
+                    }
+                }
+            } else {
+                const isShotgun = player.weapon === 'shotgun';
+                for (let i = 0; i < (isShotgun ? 6 : 1); i++) {
+                    const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+                    if (isShotgun) { dir.x += (Math.random() - 0.5) * 0.15; dir.y += (Math.random() - 0.5) * 0.15; dir.normalize(); }
+                    const pos = camera.position.clone().add(dir.clone().multiplyScalar(0.8));
+                    const bMesh = new THREE.Mesh(new THREE.SphereGeometry(0.04), new THREE.MeshBasicMaterial({ color: 0xffff00 }));
+                    bMesh.position.copy(pos); scene.add(bMesh);
+                    const bBody = new CANNON.Body({ mass: 1, shape: new CANNON.Sphere(0.04), position: new CANNON.Vec3(pos.x, pos.y, pos.z) });
+                    bBody.velocity.set(dir.x * 80, dir.y * 80, dir.z * 80);
+                    world.addBody(bBody);
+                    bullets.push({ mesh: bMesh, body: bBody, life: 1.5, dmg: isShotgun ? 15 : 30 });
+                }
+            }
+        }
+
+        // --- 7. УПРАВЛЕНИЕ ---
+        let isMobile = () => /Android|webOS|iPhone|iPad/i.test(navigator.userAgent);
+        let isGameRunning = false;
+        const keys = { w: 0, a: 0, s: 0, d: 0, space: 0 };
+
+        window.addEventListener('keydown', (e) => {
+            if (!isGameRunning) return;
+            if (e.code === 'KeyW') keys.w = 1;
+            if (e.code === 'KeyS') keys.s = 1;
+            if (e.code === 'KeyA') keys.a = 1;
+            if (e.code === 'KeyD') keys.d = 1;
+            if (e.code === 'Space') { keys.space = 1; e.preventDefault(); }
+            if (e.code === 'KeyQ') toggleMenu();
+            if (e.code === 'KeyE' || e.code === 'KeyF') fireAction();
+            if (e.code === 'KeyR') cycleWeapon();
+        });
+        window.addEventListener('keyup', (e) => {
+            if (e.code === 'KeyW') keys.w = 0;
+            if (e.code === 'KeyS') keys.s = 0;
+            if (e.code === 'KeyA') keys.a = 0;
+            if (e.code === 'KeyD') keys.d = 0;
+            if (e.code === 'Space') keys.space = 0;
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isGameRunning || isMobile() || document.pointerLockElement !== renderer.domElement) return;
+            player.yaw -= e.movementX * 0.002;
+            player.pitch -= e.movementY * 0.002;
+            player.pitch = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, player.pitch));
+        });
+        document.addEventListener('mousedown', (e) => {
+            if (!isGameRunning || isMobile() || document.pointerLockElement !== renderer.domElement) return;
+            if (e.button === 0) fireAction();
+        });
+
+        // Тач
+        let camId = null, camX = 0, camY = 0;
+        renderer.domElement.addEventListener('touchstart', (e) => {
+            if (!isGameRunning) return;
+            for (let t of e.changedTouches) {
+                if (t.clientX > window.innerWidth / 2 && camId === null) {
+                    camId = t.identifier; camX = t.clientX; camY = t.clientY; break;
+                }
+            }
+        }, { passive: false });
+
+        renderer.domElement.addEventListener('touchmove', (e) => {
+            if (!isGameRunning) return;
+            for (let t of e.changedTouches) {
+                if (t.identifier === camId) {
+                    player.yaw -= (t.clientX - camX) * 0.005;
+                    player.pitch -= (t.clientY - camY) * 0.005;
+                    player.pitch = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, player.pitch));
+                    camX = t.clientX; camY = t.clientY; e.preventDefault(); break;
+                }
+            }
+        }, { passive: false });
+
+        renderer.domElement.addEventListener('touchend', (e) => {
+            for (let t of e.changedTouches) if (t.identifier === camId) camId = null;
+        });
+
+        const jBase = document.getElementById('joystick-base');
+        const jKnob = document.getElementById('joystick-knob');
+        let jId = null, jVec = { x: 0, y: 0 };
+
+        function updateJoy(x, y) {
+            const r = jBase.getBoundingClientRect();
+            let dx = x - (r.left + r.width/2);
+            let dy = y - (r.top + r.height/2);
+            const max = r.width / 2;
+            const d = Math.sqrt(dx*dx + dy*dy);
+            if (d > max) { dx = dx/d*max; dy = dy/d*max; }
+            jKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+            jVec.x = dx / max; jVec.y = dy / max;
+        }
+
+        jBase.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const t = e.changedTouches[0];
+            jId = t.identifier; updateJoy(t.clientX, t.clientY);
+        }, { passive: false });
+
+        jBase.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            for (let t of e.changedTouches) if (t.identifier === jId) { updateJoy(t.clientX, t.clientY); break; }
+        }, { passive: false });
+
+        jBase.addEventListener('touchend', (e) => {
+            for (let t of e.changedTouches) {
+                if (t.identifier === jId) { jId = null; jVec = { x: 0, y: 0 }; jKnob.style.transform = `translate(-50%, -50%)`; break; }
+            }
+        });
+
+        // --- 8. ЛОГИКА ---
+        const clock = new THREE.Clock();
+
+        function updatePlayer(dt) {
+            if (keys.space && player.grounded) { player.vel.y = 6; player.grounded = false; keys.space = 0; }
+            player.vel.y -= 15 * dt;
+
+            let mx = 0, mz = 0;
+            if (keys.w) mz -= 1;
+            if (keys.s) mz += 1;
+            if (keys.a) mx -= 1;
+            if (keys.d) mx += 1;
+            if (jId !== null) { mx = jVec.x; mz = jVec.y; }
+
+            const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion); fwd.y = 0; fwd.normalize();
+            const rgt = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion); rgt.y = 0; rgt.normalize();
+            
+            const dir = new THREE.Vector3().addVectors(fwd.multiplyScalar(-mz), rgt.multiplyScalar(mx));
+            if (dir.lengthSq() > 0) dir.normalize();
+
+            player.vel.x = THREE.MathUtils.lerp(player.vel.x, dir.x * 6, 0.2);
+            player.vel.z = THREE.MathUtils.lerp(player.vel.z, dir.z * 6, 0.2);
+
+            player.pos.addScaledVector(player.vel, dt);
+
+            if (player.pos.y < 1.6) { player.pos.y = 1.6; player.vel.y = 0; player.grounded = true; }
+            else { player.grounded = false; }
+
+            camera.position.copy(player.pos);
+            camera.quaternion.setFromEuler(new THREE.Euler(player.pitch, player.yaw, 0, 'YXZ'));
+
+            if (player.health < 100 && Date.now() - player.lastDamage > 3000) {
+                player.health += 10 * dt;
+                if (player.health > 100) player.health = 100;
+                updateHealthUI();
+            }
+        }
+
+        function updateHealthUI() {
+            document.getElementById('hp-text').textContent = Math.round(player.health);
+            document.getElementById('health-fill').style.width = `${Math.max(0, player.health)}%`;
+            document.getElementById('health-fill').style.background = player.health > 50 ? '#4CAF50' : '#f44336';
+        }
+
+        function updateGrab() {
+            if (!player.grabbed) return;
+            const t = camera.position.clone().add(new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).multiplyScalar(5));
+            const d = t.sub(new THREE.Vector3(player.grabbed.body.position.x, player.grabbed.body.position.y, player.grabbed.body.position.z));
+            if (d.length() > 1) { d.normalize(); player.grabbed.body.velocity.x += d.x * 15; player.grabbed.body.velocity.y += d.y * 15; player.grabbed.body.velocity.z += d.z * 15; }
+        }
+
+        function updateNPCs(dt) {
+            objects.forEach(o => {
+                if (!o.isNPC) return;
+                o.timer -= dt;
+                const p = player.pos;
+                const n = new THREE.Vector3(o.body.position.x, o.body.position.y, o.body.position.z);
+                const dist = n.distanceTo(p);
+
+                if (o.type === 'zombie') {
+                    if (dist < 25) {
+                        const d = p.clone().sub(n).normalize();
+                        o.body.velocity.x = d.x * 3; o.body.velocity.z = d.z * 3;
+                        o.mesh.lookAt(p.x, o.mesh.position.y, p.z);
+                        if (dist < 1.5 && Date.now() - player.lastDamage > 1000) {
+                            player.health -= 10; player.lastDamage = Date.now(); updateHealthUI();
+                            if (player.health <= 0) { player.health = 100; player.pos.set(0, 1.6, 0); updateHealthUI(); }
+                        }
+                    } else { o.body.velocity.x = 0; o.body.velocity.z = 0; }
+                } else if (o.type === 'soldier') {
+                    let target = null; let min = 25;
+                    objects.forEach(z => { if (z.type === 'zombie') { const dz = n.distanceTo(new THREE.Vector3(z.body.position.x, z.body.position.y, z.body.position.z)); if (dz < min) { min = dz; target = z; } } });
+                    if (target) {
+                        const tp = new THREE.Vector3(target.body.position.x, target.body.position.y + 1, target.body.position.z);
+                        o.mesh.lookAt(tp.x, o.mesh.position.y, tp.z);
+                        if (Date.now() - o.lastShot > 700) {
+                            o.lastShot = Date.now();
+                            const s = n.clone().add(new THREE.Vector3(0, 1.2, 0));
+                            const d = tp.clone().sub(s).normalize();
+                            const bMesh = new THREE.Mesh(new THREE.SphereGeometry(0.04), new THREE.MeshBasicMaterial({ color: 0x00ff00 }));
+                            bMesh.position.copy(s); scene.add(bMesh);
+                            const bBody = new CANNON.Body({ mass: 1, shape: new CANNON.Sphere(0.04), position: new CANNON.Vec3(s.x, s.y, s.z) });
+                            bBody.velocity.set(d.x * 60, d.y * 60, d.z * 60); world.addBody(bBody);
+                            bullets.push({ mesh: bMesh, body: bBody, life: 1.5, dmg: 20, friendly: true });
+                        }
+                    }
+                } else if (o.type === 'citizen') {
+                    if (o.timer <= 0) { o.timer = 2 + Math.random() * 2; o.dir.set(Math.random()-0.5, 0, Math.random()-0.5).normalize(); }
+                    o.body.velocity.x = o.dir.x * 1.5; o.body.velocity.z = o.dir.z * 1.5;
+                    o.mesh.lookAt(o.mesh.position.x + o.dir.x, o.mesh.position.y, o.mesh.position.z + o.dir.z);
+                }
+            });
+        }
+
+        function updateBullets(dt) {
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const b = bullets[i];
+                b.life -= dt; b.mesh.position.copy(b.body.position);
+                let hit = false;
+
+                for (let o of objects) {
+                    const d = new THREE.Vector3(b.body.position.x, b.body.position.y, b.body.position.z).distanceTo(new THREE.Vector3(o.body.position.x, o.body.position.y, o.body.position.z));
+                    if (d < 1.0) {
+                        if (b.friendly && o.type === 'zombie') { o.hp -= b.dmg; if (o.hp <= 0) removeObj(o); hit = true; }
+                        else if (!b.friendly && o.enemy) { o.hp -= b.dmg; if (o.hp <= 0) removeObj(o); hit = true; }
+                        else if (!b.friendly && !o.isNPC) { o.body.applyImpulse(new CANNON.Vec3(b.body.velocity.x*0.1, b.body.velocity.y*0.1, b.body.velocity.z*0.1), new CANNON.Vec3(0,0,0)); hit = true; }
+                        if (hit) break;
+                    }
+                }
+                if (b.life <= 0 || hit) { scene.remove(b.mesh); world.removeBody(b.body); bullets.splice(i, 1); }
+            }
+        }
+
+        function removeObj(o) {
+            scene.remove(o.mesh); world.removeBody(o.body);
+            const i = objects.indexOf(o); if (i > -1) objects.splice(i, 1);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const dt = Math.min(clock.getDelta(), 0.1);
+            if (isGameRunning) {
+                updatePlayer(dt); updateGrab(); updateNPCs(dt); updateBullets(dt);
+                world.step(1/60, dt, 3);
+                objects.forEach(o => {
+                    o.mesh.position.copy(o.body.position);
+                    if (!o.isNPC) o.mesh.quaternion.copy(o.body.quaternion);
+                });
+            }
+            renderer.render(scene, camera);
+        }
+
+        // --- 9. СТАРТ ---
+        let map = 'grass';
+        window.selectMap = (m) => {
+            map = m;
+            document.querySelectorAll('.map-btn').forEach(b => b.style.borderColor = '#444');
+            event.target.closest('.map-btn').style.borderColor = '#4CAF50';
+        };
+
+        window.startGame = () => {
+            document.getElementById('start-overlay').style.display = 'none';
+            isGameRunning = true;
+
+            if (map === 'grass') { scene.background = new THREE.Color(0x87CEEB); scene.fog = new THREE.Fog(0x87CEEB, 30, 100); groundMesh.material.color.setHex(0x4a6b4a); }
+            if (map === 'desert') { scene.background = new THREE.Color(0xf0d090); scene.fog = new THREE.Fog(0xf0d090, 30, 100); groundMesh.material.color.setHex(0xd4b06a); }
+            if (map === 'space') { scene.background = new THREE.Color(0x000000); scene.fog = null; groundMesh.material.color.setHex(0x222222); }
+
+            setWeapon('gravity');
+            updateHealthUI();
+            
+            if (!isMobile()) renderer.domElement.requestPointerLock();
+        };
+
+        document.getElementById('btn-shoot').addEventListener('click', fireAction);
+        document.getElementById('btn-weapon').addEventListener('click', cycleWeapon);
+        document.getElementById('btn-jump').addEventListener('click', () => { keys.space = 1; setTimeout(() => keys.space = 0, 100); });
+
+        animate();
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+    </script>
+</body>
+  </html>
